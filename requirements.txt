@@ -1,0 +1,10 @@
+graphviz
+gym-super-mario-bros
+matplotlib
+neat-python
+numpy
+opencv-python
+
+# dev stuff
+black
+isort
