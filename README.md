@@ -1,2 +1,3 @@
 # marioAI
-Mario AI using NEAT &amp; Gym
+
+a MarioAI using RL
