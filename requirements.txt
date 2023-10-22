@@ -1,2 +1,6 @@
 gym_super_mario_bros
 nes_py
+opencv-python
+shimmy>=0.2.1
+stable-baselines3
+tensorboard
