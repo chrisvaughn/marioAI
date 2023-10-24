@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import gym_super_mario_bros
@@ -25,10 +26,17 @@ JoypadSpace.reset = reset
 
 
 class TrainAndLoggingCallback(BaseCallback):
-    def __init__(self, check_freq, save_path, verbose=1):
+    def __init__(
+        self,
+        check_freq,
+        save_path,
+        resume_training_interations=0,
+        verbose=1,
+    ):
         super(TrainAndLoggingCallback, self).__init__(verbose)
         self.check_freq = check_freq
         self.save_path = save_path
+        self.resume_training_interations = resume_training_interations
 
     def _init_callback(self):
         if self.save_path is not None:
@@ -36,28 +44,62 @@ class TrainAndLoggingCallback(BaseCallback):
 
     def _on_step(self):
         if self.n_calls % self.check_freq == 0:
-            model_path = os.path.join(
-                self.save_path, "best_model_{}".format(self.n_calls)
-            )
+            total_interations = self.resume_training_interations + self.n_calls
+            model_path = os.path.join(self.save_path, f"best_model_{total_interations}")
             self.model.save(model_path)
 
         return True
 
 
-env = gym_super_mario_bros.make("SuperMarioBros-v0", apply_api_compatibility=True)
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
-env = GrayScaleObservation(env, keep_dim=True)
-env = DummyVecEnv([lambda: env])
-env = VecFrameStack(env, 4, channels_order="last")
+def main(model_path=None, resume_training_interations=0):
+    env = gym_super_mario_bros.make("SuperMarioBros-v0", apply_api_compatibility=True)
+    env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    env = GrayScaleObservation(env, keep_dim=True)
+    env = DummyVecEnv([lambda: env])
+    env = VecFrameStack(env, 4, channels_order="last")
 
-callback = TrainAndLoggingCallback(check_freq=10000, save_path=CHECKPOINT_DIR)
-model = PPO(
-    "CnnPolicy",
-    env,
-    verbose=1,
-    tensorboard_log=LOG_DIR,
-    learning_rate=0.000001,
-    n_steps=512,
-)
-model.learn(total_timesteps=1000000, callback=callback)
-model.save("thisisatestmodel")
+    callback = TrainAndLoggingCallback(
+        check_freq=10000,
+        save_path=CHECKPOINT_DIR,
+        resume_training_interations=resume_training_interations,
+    )
+    if model_path is not None:
+        model = PPO.load(
+            model_path,
+            env,
+            verbose=1,
+            tensorboard_log=LOG_DIR,
+            learning_rate=0.000001,
+            n_steps=512,
+        )
+    else:
+        model = PPO(
+            "CnnPolicy",
+            env,
+            verbose=1,
+            tensorboard_log=LOG_DIR,
+            learning_rate=0.000001,
+            n_steps=512,
+        )
+    model.learn(total_timesteps=1000000, callback=callback)
+    model.save("thisisatestmodel")
+
+
+if __name__ == "__main__":
+    argparse = argparse.ArgumentParser()
+    argparse.add_argument("--resume-model", help="path to model to resume training")
+    argparse.add_argument(
+        "--resume-interations",
+        type=int,
+        default=None,
+        help="number of interations to resume training from",
+    )
+    args = argparse.parse_args()
+    if args.resume_model:
+        if args.resume_interations is None:
+            raise ValueError(
+                "Must provide number of interations to resume training from"
+            )
+        main(args.resume_model, args.resume_interations)
+    else:
+        main()

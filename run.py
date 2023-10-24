@@ -1,4 +1,4 @@
-import os
+import argparse
 
 import gym_super_mario_bros
 from gym.wrappers import GrayScaleObservation
@@ -24,25 +24,33 @@ def reset(self, *args, **kwargs):
 JoypadSpace.reset = reset
 
 
-env = gym_super_mario_bros.make(
-    "SuperMarioBros-v0", apply_api_compatibility=True, render_mode="human"
-)
-env = JoypadSpace(env, SIMPLE_MOVEMENT)
-env = GrayScaleObservation(env, keep_dim=True)
-env = DummyVecEnv([lambda: env])
-env = VecFrameStack(env, 4, channels_order="last")
+def main(model_path):
+    env = gym_super_mario_bros.make(
+        "SuperMarioBros-v0", apply_api_compatibility=True, render_mode="human"
+    )
+    env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    env = GrayScaleObservation(env, keep_dim=True)
+    env = DummyVecEnv([lambda: env])
+    env = VecFrameStack(env, 4, channels_order="last")
 
-model = PPO.load("./train/best_model_40000.zip")
+    model = PPO.load(model_path)
 
-done = True
-state = env.reset()
-# Loop through each frame in the game
-for step in range(100000):
-    # Start the game to begin with
-    if done:
-        # Start the gamee
-        env.reset()
-    action, _ = model.predict(state)
-    state, reward, done, info = env.step(action)
-# Close the game
-env.close()
+    done = True
+    state = env.reset()
+    # Loop through each frame in the game
+    for step in range(100000):
+        # Start the game to begin with
+        if done:
+            # Start the gamee
+            env.reset()
+        action, _ = model.predict(state)
+        state, reward, done, info = env.step(action)
+    # Close the game
+    env.close()
+
+
+if __name__ == "__main__":
+    argparse = argparse.ArgumentParser()
+    argparse.add_argument("model", help="path to model")
+    args = argparse.parse_args()
+    main(args.model)
